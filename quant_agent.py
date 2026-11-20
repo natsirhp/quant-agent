@@ -3,6 +3,7 @@
     python quant_agent.py daily              # full daily report -> Telegram
     python quant_agent.py daily --no-send    # same, but only save files locally
     python quant_agent.py ask "Backtest a 20/100 SMA crossover on QQQ since 2010"
+    python quant_agent.py send out           # send an existing report folder (used by the workflow)
 
 The agent and its environment are created once with `ant apply` (see README);
 this script only starts sessions. IDs come from claude-lock.json, or from the
@@ -200,7 +201,20 @@ def main() -> None:
     a = sub.add_parser("ask", help="ask the agent a one-off quant question")
     a.add_argument("question")
     a.add_argument("--send", action="store_true", help="also send the answer to Telegram")
+    s = sub.add_parser("send", help="send an existing report folder (telegram.txt, *.png, report.md) to Telegram")
+    s.add_argument("folder")
     args = p.parse_args()
+
+    if args.cmd == "send":  # used by the subscription (Claude Code) workflow; no API key needed
+        folder = Path(args.folder)
+        files = {f.name: f for f in sorted(folder.glob("*")) if f.is_file()} if folder.is_dir() else {}
+        if "telegram.txt" in files:
+            summary = files["telegram.txt"].read_text()
+        else:
+            summary = (f"Daily quant report failed: no telegram.txt in {folder}/. "
+                       "Check the GitHub Actions log for this run.")
+        send_to_telegram(summary, files)
+        return
 
     cfg = load_config()
     agent_id, env_id = load_ids()

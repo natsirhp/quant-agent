@@ -1,83 +1,68 @@
 # Quant agent → Telegram
 
-A Claude Managed Agent that does quantitative research and sends you a report on Telegram every day.
+Claude does quantitative research and sends you a report on Telegram every day.
 
 - **Market analysis**: returns, volatility, RSI, trend, z-scores, correlations
 - **Strategy backtests**: the strategies in `config.yaml`, without look-ahead and with trading costs
-- **Portfolio risk**: volatility, beta, VaR/CVaR, risk contribution, optional optimization
+- **Portfolio risk**: volatility, beta, VaR/CVaR, risk contribution
 - **Research**: news and upcoming dates from web search, each with a link
 
-## How it works
+## How it works (Claude Pro/Max subscription)
 
 ```
-GitHub Actions (daily cron)
-   └─ quant_agent.py daily
-        ├─ starts a session of the quant-analyst agent   (Anthropic runs the loop + a Python sandbox)
-        │     agent pulls prices (yfinance), runs the analysis, searches news
-        │     writes report.md, telegram.txt, chart.png to /mnt/session/outputs/
-        │     a grader checks the report against a rubric; the agent revises once if needed
-        ├─ downloads those files
-        └─ sends them to Telegram (summary message + chart + full report)
+GitHub Actions (daily at 22:17 UTC)
+   ├─ installs Python + pandas, numpy, scipy, statsmodels, matplotlib, yfinance
+   ├─ Claude Code (on your subscription) follows prompts/daily-report.md:
+   │     pulls prices, runs the analysis and backtests, searches news
+   │     writes out/report.md, out/telegram.txt, out/chart.png
+   └─ python quant_agent.py send out  →  Telegram (summary + chart + full report)
 ```
-
-The Telegram bot token stays with the runner and never reaches the agent's sandbox. Telegram puts the token in the URL path, and Anthropic's vault can only inject secrets into headers and request bodies.
 
 | File | What it is |
 |---|---|
-| `agents/quant-analyst/agent.md` | Agent definition: model, tools, system prompt |
-| `agents/quant-analyst/environment.yaml` | Sandbox: Python packages and networking |
-| `config.yaml` | Watchlist, benchmark, portfolio weights, strategies, cost cap per run |
-| `quant_agent.py` | Runner: `daily` (report → Telegram) and `ask` (one-off question) |
+| `prompts/daily-report.md` | What Claude does every day. Edit to change the report |
+| `config.yaml` | Watchlist, benchmark, portfolio weights, strategies |
 | `.github/workflows/daily-report.yml` | The daily schedule |
+| `quant_agent.py` | `send` delivers a report folder to Telegram |
 
 ## Setup
 
 ### 1. Telegram bot
 1. In Telegram, message **@BotFather** → `/newbot` → copy the token.
-2. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` in a browser and copy `message.chat.id`.
+2. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `message.chat.id`.
 
-### 2. Create the agent (once)
-Install the `ant` CLI (`brew install anthropics/tap/ant`, or a release from github.com/anthropics/anthropic-cli), then log in with `ant auth login` or export `ANTHROPIC_API_KEY`. From this directory:
-
-```bash
-ant apply --dry-run -v agents/quant-analyst/agent.md agents/quant-analyst/environment.yaml
-```
+### 2. Claude subscription token
+On your own computer, with Claude Code installed (`npm install -g @anthropic-ai/claude-code`), run:
 
 ```bash
-ant apply agents/quant-analyst/agent.md agents/quant-analyst/environment.yaml
+claude setup-token
 ```
 
-This writes `claude-lock.json`, which holds the agent and environment IDs. **Commit it.** The runner reads the IDs from it, and without it the next `ant apply` creates duplicates.
+Log in with your Pro/Max account. It prints a long-lived token that starts with `sk-ant-oat`.
 
-### 3. Try it locally
-```bash
-pip install -r requirements.txt
-```
+Then install the Claude GitHub App on this repo: **https://github.com/apps/claude**.
 
-```bash
-python quant_agent.py ask "Backtest a 20/100 SMA crossover on QQQ since 2010 vs buy-and-hold"
-```
+### 3. GitHub secrets
+In **Settings → Secrets and variables → Actions → Repository secrets**, add:
 
-```bash
-export TELEGRAM_BOT_TOKEN=...  TELEGRAM_CHAT_ID=...
-python quant_agent.py daily
-```
+| Name | Value |
+|---|---|
+| `CLAUDE_CODE_OAUTH_TOKEN` | the token from `claude setup-token` |
+| `TELEGRAM_BOT_TOKEN` | from BotFather |
+| `TELEGRAM_CHAT_ID` | from getUpdates |
 
-Output files are also saved under `out/<date>/`. Each run prints a link to its trace in the Claude Console.
-
-### 4. Turn on the daily schedule
-Push this folder to a GitHub repo, including `claude-lock.json`. Then in **Settings → Secrets and variables → Actions**, add:
-`ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-
-The workflow runs every day at 22:17 UTC, after the US close. To change the time, edit the cron line. To run it right away, open **Actions → Daily quant report → Run workflow**.
+### 4. Test
+Open **Actions → Daily quant report → Run workflow**. The report reaches Telegram in about 5–15 minutes. Every run also saves its files as a downloadable **quant-report** artifact.
 
 ## Changing things
-- **What it covers**: edit `config.yaml`. You don't need to re-apply anything.
-- **How it thinks**: edit `agents/quant-analyst/agent.md`, then run `ant apply`. This creates a new agent version, and new runs use it.
-- **Cost**: each run has a hard cap of `max_cost_usd` (default $5), enforced by the platform. For a cheaper run, use `effort: medium` in `agent.md`, a shorter watchlist, or fewer strategies.
+- **What it covers**: edit `config.yaml`.
+- **How it analyzes**: edit `prompts/daily-report.md`.
+- **When it runs**: edit the `cron` line in the workflow. It uses UTC.
 
 ## Notes
-- Managed Agents is a beta feature. You pay for tokens plus session runtime, and session history is kept until you delete it.
-- Tools run under the `auto` permission policy: the platform screens each call. Nobody watches a scheduled run, so the runner denies any call that would wait for a human.
-- Prices come from Yahoo Finance via `yfinance`, with Stooq as a fallback. This is free data with no SLA, so a ticker can occasionally be missing, and the report says so when it is.
+- Runs count against your subscription's usage limits. A daily report is one long Claude Code session.
+- Prices come from Yahoo Finance via `yfinance`, with Stooq as a fallback. This is free data, so a ticker can occasionally be missing, and the report says so when it is.
 - This is research output, not investment advice.
+
+## Alternative: API credits (Managed Agents)
+If you later get API credits, `agents/quant-analyst/` and `python quant_agent.py daily` / `ask` run the same analysis as a hosted Managed Agent instead. Set it up with `ant apply agents/quant-analyst/agent.md agents/quant-analyst/environment.yaml` and the `ANTHROPIC_API_KEY` secret.

@@ -1,10 +1,17 @@
 name: Daily quant report
 
+# Runs Claude Code on your Claude Pro/Max subscription (CLAUDE_CODE_OAUTH_TOKEN),
+# then sends the result to Telegram. No API credits needed.
+
 on:
   schedule:
     # Every day at 22:17 UTC (after the US close). Edit to taste: https://crontab.guru
     - cron: "17 22 * * *"
   workflow_dispatch: {}   # "Run workflow" button for a manual run
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   report:
@@ -12,16 +19,31 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - name: Run agent and send to Telegram
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt pandas numpy scipy statsmodels matplotlib yfinance
+
+      - name: Run the quant analysis with Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Read prompts/daily-report.md and follow it exactly.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 80
+            --allowedTools "Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Bash(python:*),Bash(python3:*),Bash(date:*),Bash(mkdir:*),Bash(ls:*),Bash(wc:*),Bash(cat:*)"
+
+      - name: Send to Telegram
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python quant_agent.py daily
+        run: python quant_agent.py send out
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
