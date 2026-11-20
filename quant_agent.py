@@ -187,7 +187,7 @@ def send_to_telegram(text: str, files: dict[str, Path]) -> None:
     if "report.md" in files:
         with files["report.md"].open("rb") as fh:
             telegram("sendDocument", data={"chat_id": chat_id, "caption": "Full report"},
-                     files={"document": (f"quant-report-{dt.date.today()}.md", fh)})
+                     files={"document": (f"portfolio-report-{dt.date.today()}.md", fh)})
     print("Sent to Telegram.")
 
 
@@ -211,7 +211,7 @@ def main() -> None:
         if "telegram.txt" in files:
             summary = files["telegram.txt"].read_text()
         else:
-            summary = (f"Daily quant report failed: no telegram.txt in {folder}/. "
+            summary = (f"Daily portfolio report failed: no telegram.txt in {folder}/. "
                        "Check the GitHub Actions log for this run.")
         send_to_telegram(summary, files)
         return
