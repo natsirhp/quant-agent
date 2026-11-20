@@ -1,0 +1,24 @@
+# What the daily report covers. Edit freely; no secrets belong here.
+watchlist: [AAPL, MSFT, NVDA, AMZN, GOOGL, JPM, XOM, GLD, TLT]
+benchmark: SPY
+
+# Optional portfolio weights (must sum to 1). Leave empty for equal-weight watchlist.
+portfolio:
+  AAPL: 0.15
+  MSFT: 0.15
+  NVDA: 0.15
+  AMZN: 0.10
+  GOOGL: 0.10
+  JPM: 0.10
+  XOM: 0.05
+  GLD: 0.10
+  TLT: 0.10
+
+# Strategies to backtest every run (plain English; the agent codes them).
+strategies:
+  - "50/200-day moving-average crossover on each ticker, long or flat, 10 years"
+  - "12-1 month cross-sectional momentum on the watchlist, top 3 equal-weight, monthly rebalance"
+  - "RSI(2) mean reversion on SPY: buy close < 10, exit close > 70"
+
+# Hard spend cap per run, in US dollars (enforced by the platform).
+max_cost_usd: 5

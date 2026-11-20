@@ -1,0 +1,17 @@
+# Sandbox the agent's Python runs in.
+# Unrestricted networking: yfinance talks to several Yahoo hosts and the agent
+# fetches news pages it can't list in advance. No secrets ever enter this sandbox
+# (the Telegram token stays with the runner), so there is nothing here to leak.
+config:
+  type: cloud
+  networking:
+    type: unrestricted
+  packages:
+    type: packages
+    pip:
+      - pandas
+      - numpy
+      - scipy
+      - statsmodels
+      - matplotlib
+      - yfinance
