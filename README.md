@@ -2,10 +2,10 @@
 
 Every morning Claude reads your Investment_Tracker Google Sheet, checks the news that affects what you own, and sends you a report on Telegram.
 
-- **Market analysis**: returns, volatility, RSI, trend, z-scores, correlations
-- **Strategy backtests**: the strategies in `config.yaml`, without look-ahead and with trading costs
-- **Portfolio risk**: volatility, beta, VaR/CVaR, risk contribution
-- **Research**: news and upcoming dates from web search, each with a link
+- **Snapshot**: value, gain/loss, dividends, exposure vs your targets
+- **What moved**: each holding's move, split into price change and FX change vs IDR
+- **News that matters**: Fed, rupiah/BI, Indonesian markets, CHF, SGD, crypto and holding-specific news, each with a link
+- **Sheet check**: missing costs, stale or wrong prices, ambiguous symbols
 
 ## How it works (Claude Pro/Max subscription)
 
